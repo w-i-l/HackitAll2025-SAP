@@ -160,8 +160,7 @@ class Airport:
                         first_class=pending_kit.kits.first.amount - (pending_kit.kits.first.amount if key_type == KitType.FIRST else 0),
                     )
                     
-                else:
-                    # Still processing
+                if not pending_kit.kits.is_empty():
                     remaining_kits_in_processing.append(pending_kit)
                     
         self.kits_in_processing = remaining_kits_in_processing

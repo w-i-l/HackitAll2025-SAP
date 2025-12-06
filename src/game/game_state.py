@@ -31,16 +31,30 @@ class GameState:
         self.flights_schedueles: List[FlightSchedule] = []
         self.flights_by_id: Dict[str, Flight] = {}
         
+        self.load_data()
+        
         
     @property
     def flights(self) -> List[Flight]:
         return list(self.flights_by_id.values())   
         
+     
+    def advance_time(self) -> None:
+        self.current_hour += 1
+        if self.current_hour >= 24:
+            self.current_hour = 0
+            self.current_day += 1   
+        
         
     def load_data(self) -> None:
         self.aircraft_types = list(self.data_loader.load_aircraft_types().values())
         self.airports = list(self.data_loader.load_airports().values())
-        self.flights_schedueles = list(self.data_loader.load_flight_schedules().values())
+        self.flights_schedueles = self.data_loader.load_flight_schedules()
+        
+        print(f"Loaded {len(self.aircraft_types)} aircraft types.")
+        print(f"Loaded {len(self.airports)} airports.")
+        print(f"Loaded {len(self.flights_schedueles)} flight schedules.")
+        print("Game data loaded successfully.")
     
     
     def get_aircraft_type_by_name(self, name: str) -> AircraftType | None:
@@ -103,8 +117,8 @@ class GameState:
                     flight.distance_km = flight_update.distance
                    
                    
-    def update_hub(self, hub_orders: List[KitPurchasingOrder]) -> None:
-        self.update_hub_new_orders(hub_orders)
+    def update_hub(self, hub_order: KitPurchasingOrder) -> None:
+        self.update_hub_new_order(hub_order)
         self.process_pending_kits_in_hub()
     
     
@@ -137,29 +151,29 @@ class GameState:
                            premium_economy_class=pending_kit.kits.premium_economy.amount - (pending_kit.kits.premium_economy.amount if key_type == KitType.PREMIUM_ECONOMY else 0),
                            first_class=pending_kit.kits.first.amount - (pending_kit.kits.first.amount if key_type == KitType.FIRST else 0),
                        )
-            else:
+                       
+            if not pending_kit.kits.is_empty():
                 remaining_kits_in_delivery.append(pending_kit)
                 
         self.kits_in_delivery = remaining_kits_in_delivery
      
      
-    def update_hub_new_orders(self, hub_orders: List[KitPurchasingOrder]) -> None:
+    def update_hub_new_order(self, hub_order: KitPurchasingOrder) -> None:
         hub_airport = self.get_airport_by_code(self.hub_code)
         if not hub_airport:
             return
 
-        for order in hub_orders:
-            pending_kit = PendingKit(
-                kits=ClassDict(
-                    business_class=order.ordered_business_class,
-                    economy_class=order.ordered_economy_class,
-                    premium_economy_class=order.ordered_premium_economy_class,
-                    first_class=order.ordered_first_class,
+        pending_kit = PendingKit(
+            kits=ClassDict(
+                business_class=hub_order.ordered_business_class,
+                economy_class=hub_order.ordered_economy_class,
+                premium_economy_class=hub_order.ordered_premium_economy_class,
+                    first_class=hub_order.ordered_first_class,
                 ),
                 arrival_day=self.current_day,
                 arrival_hour=self.current_hour,
             )
-            self.kits_in_delivery.append(pending_kit)
+        self.kits_in_delivery.append(pending_kit)
                     
                     
     def update_airports(
@@ -200,6 +214,7 @@ class GameState:
                     )
                     if flight and flight_load:
                         origin_airport.remove_kits(flight.loaded_kits)
+                        
                         flight.loaded_kits = ClassDict(
                             business_class=flight_load.loaded_business_class,
                             economy_class=flight_load.loaded_economy_class,

@@ -88,6 +88,9 @@ class ClientAPI:
         endpoint = "v1/play/round"
         url = self.base_url + endpoint
 
+        if self.session_id is None:
+            return NoActiveSessionError()
+
         headers = {
             "API-KEY": self.api_key,
             "SESSION-ID": self.session_id,
